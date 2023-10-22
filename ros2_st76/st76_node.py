@@ -14,7 +14,9 @@ import struct
 class ST76Node(Node):
     def __init__(self):
         super().__init__('st76_node')
-        self.buffer = [0, 0, 0, 0, 0, 0, 0, 0, 0]  # 9 bytes length read data
+        self.buffer = []
+        self.MAX_BUFFER_SIZE = 100  # Limit for the buffer size
+
         self.serial_subscriptions = self.create_subscription(
             UInt8MultiArray, '/serial_read', self.serial_read_callback, 100)
         self.serial_subscriptions
@@ -36,18 +38,41 @@ class ST76Node(Node):
         return crc_bytes
     
     def serial_read_callback(self, msg: UInt8MultiArray):
-        for data in msg.data:
-            self.buffer.pop(0)
-            self.buffer.append(data)
-            crc = self.calculate_crc16(self.buffer[:-2])
-            # If it is a valid byte array, parse the payload
+        """
+        Valid reading respone message:
+        [01 03 04 XX XX XX XX crc0 crc1] -> 9-bytes length
+        """
+        self.buffer += msg.data
+        # Guard
+        if len(self.buffer) == 0:
+            self.get_logger().info('Buffer is empty.')
+            return
+        if len(self.buffer) > self.MAX_BUFFER_SIZE:
+            self.buffer = []
+            return
+        # Remove any leading bytes that are not 0x01
+        if self.buffer[0] != 0x01:
+            try:
+                # Find the position of the first occurrence of 01
+                index = self.buffer.index(1)
+                # Discard all elements before 01
+                self.buffer = self.buffer[index:]
+            except ValueError:
+                # If 01 is not in the buffer, discard the stream
+                self.buffer = []
+                return
+        if len(self.buffer) >= 9:
+            crc = self.calculate_crc16(self.buffer[:7])
             if self.buffer[7] == crc[0] and self.buffer[8] == crc[1]:
                 payload = struct.unpack('!i', bytes(self.buffer[3:7]))[0]
                 msg_encoder = Float32()
                 msg_encoder.data = float(payload)/100.0  # 2 decimals
                 self.encoder_publisher.publish(msg_encoder)
-        return
-    
+                self.buffer = self.buffer[9:]
+            else:
+                # If CRC check fails, remove the first byte and continue
+                self.buffer.pop(0)
+
     def timer_callback(self):
         msg = UInt8MultiArray()
         command = struct.pack('6B', 0x01, 0x03, 0x00, 0x21, 0x00, 0x02)
