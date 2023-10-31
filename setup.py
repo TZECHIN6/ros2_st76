@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'st76_node = ros2_st76.st76_node:main',
+            'vehicle_speed_rpt_publisher_node = ros2_st76.vehicle_speed_rpt_publisher:main'
         ],
     },
 )
