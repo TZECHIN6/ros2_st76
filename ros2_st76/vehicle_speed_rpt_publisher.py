@@ -25,18 +25,18 @@ class VehicleSpeedReportPublisher(Node):
     def encoder_callback(self, msg: Float32):
         current_time = self.get_clock().now().to_msg()
         current_encoder_value = msg.data
-        if self.prev_encoder_value == None or self.prev_encoder_value == None:
-            self.prev_encoder = current_encoder_value
+        if self.prev_encoder_time == None or self.prev_encoder_value == None:
+            self.prev_encoder_value = current_encoder_value
             self.prev_encoder_time = current_time
             return
         velocity_msg = VelocityReport()
         velocity_msg.header.stamp = current_time
         velocity_msg.header.frame_id = 'base_link'
         time_difference = self.time_difference(current_time, self.prev_encoder_time)
-        velocity_msg.longitudinal_velocity = (current_encoder_value - self.prev_encoder) * self.encoder_ratio / time_difference  # [m/s]
+        velocity_msg.longitudinal_velocity = (current_encoder_value - self.prev_encoder_value) * self.encoder_ratio / time_difference  # [m/s]
         self.velocity_status_pub_.publish(velocity_msg)
         # Update previous time and encoder reading
-        self.prev_encoder = current_encoder_value
+        self.prev_encoder_value = current_encoder_value
         self.prev_encoder_time = current_time
 
     def time_difference(self, current_time , previous_time) -> float:
