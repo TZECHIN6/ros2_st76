@@ -20,7 +20,7 @@ class ST76Node(Node):
         self.serial_subscriptions = self.create_subscription(
             UInt8MultiArray, '/serial_read', self.serial_read_callback, 100)
         self.serial_subscriptions
-        self.serial_publisher = self.create_publisher(UInt8MultiArray, 'serial_write', 10)
+        self.serial_publisher = self.create_publisher(UInt8MultiArray, '/serial_write', 10)
         self.encoder_publisher = self.create_publisher(Float32, '/encoder_read', 10)
         timer_period = 0.1  # [s]
         self.timer = self.create_timer(timer_period, self.timer_callback)
